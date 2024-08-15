@@ -1,5 +1,7 @@
 from setuptools import setup, find_packages
 
+#TODO change name to iris_evaluation
+
 setup(
     name='generated_iris_evaluation',
     version='0.1.1',

@@ -6,7 +6,7 @@ import multiprocessing
 import numpy as np
 from torch.utils.data import DataLoader
 
-from generated_iris_evaluation import MasekGaborKernel, AnalysisArgs, make_instructions, ReferenceSet, SampleSet, hamming_distance, set_device, process_dataset
+from iris_evaluation import MasekGaborKernel, AnalysisArgs, make_instructions, ReferenceSet, SampleSet, hamming_distance, set_device, process_dataset
 
 
 #options 0, 1, 2
