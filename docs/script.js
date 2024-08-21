@@ -125,7 +125,7 @@ function hamming_distance(extraFieldsDiv) {
     var inputBitShifts_false = document.createElement('input');
     inputBitShifts_false.type = 'radio';
     inputBitShifts_false.id = 'Shifts_false';
-    inputBitShifts_false.name = 'bit_shifts';
+    inputBitShifts_false.name = 'bitShifts';
     inputBitShifts_false.value = false;
     extraFieldsDiv.appendChild(inputBitShifts_false);
 

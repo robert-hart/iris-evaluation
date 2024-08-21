@@ -1,7 +1,0 @@
-numpy
-opencv-python
-pandas
-polars
-openpyxl
-tqdm
-torch
