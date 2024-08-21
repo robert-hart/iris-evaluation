@@ -1,6 +1,6 @@
 ﻿keys,values,description
-reference,/Users/roberthart/Desktop/GeneratedIrisEvaluation/data/reference/256_linear.npz,full path to reference image dataset as .npz
-comparison,/Users/roberthart/Desktop/GeneratedIrisEvaluation/data/comparison,path containing sample image dataset(s) as .npz
+reference,/Users/roberthart/Documents/GitHub/iris-evaluation/data/reference/256_linear.npz,full path to reference image dataset as .npz
+comparison,/Users/roberthart/Documents/GitHub/iris-evaluation/data/comparison,path containing sample image dataset(s) as .npz
 verbose,0,
 gabor,0,
 comparison,1,

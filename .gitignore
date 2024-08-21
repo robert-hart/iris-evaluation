@@ -1,7 +1,1 @@
 Data/
-iris_evaluation.egg-info/
-*.npy
-scripts/
-iris_evaluation/__pycache__
-iris_evaluation/core/__pycache__
-iris_evaluation/utils/__pycache__

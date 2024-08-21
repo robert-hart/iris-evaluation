@@ -6,11 +6,8 @@ import multiprocessing
 import numpy as np
 from torch.utils.data import DataLoader
 
-from iris_evaluation import MasekGaborKernel, AnalysisArgs, make_instructions, ReferenceSet, SampleSet, hamming_distance, set_device, process_dataset
+from iris_evaluation import MasekGaborKernel, AnalysisArgs, make_instructions, RolledCodes, UnrolledCodes, pairwise_hamming_distance, set_torch_device, process_dataset
 
-
-#options 0, 1, 2
-#0 = no segmentation
 
 def main():
     #reads the csv
@@ -61,11 +58,10 @@ def main():
             print(f'consolidation complete')
     
     if args.comparison_mode:
-        #
         reference_batch_size = 4
         sample_batch_size = 10
 
-        device = set_device()
+        device = set_torch_device()
 
         target_paths = []
         target_dir = f'{args.comparison[0].rsplit("/", 2)[0]}/results'
@@ -73,11 +69,11 @@ def main():
 
         #load reference set
         reference_codes = np.load(args.comparison[0], allow_pickle=True)
-        reference_dataset = ReferenceSet(reference_codes)
+        reference_dataset = RolledCodes(reference_codes)
         reference_data = DataLoader(reference_dataset, batch_size=reference_batch_size, pin_memory=True)
 
         #calculate intra group hamming distance
-        reference_unrolled = DataLoader(SampleSet(reference_codes), batch_size=reference_batch_size, pin_memory=True)
+        reference_unrolled = DataLoader(UnrolledCodes(reference_codes), batch_size=reference_batch_size, pin_memory=True)
 
 
 
@@ -93,10 +89,15 @@ def main():
                 target_paths.append(target)
 
                 comparison_codes = np.load(output, allow_pickle=True)
-                comparison_dataset = SampleSet(comparison_codes)
+                comparison_dataset = UnrolledCodes(comparison_codes)
                 comparison_data = DataLoader(comparison_dataset, batch_size=sample_batch_size, pin_memory=True)
 
-                hamming_distance(device, f'{target}/hamming.txt', reference_data, comparison_data)
+                #calculate_pairwise_hamming(device, f'{target}/hamming.txt', reference_unrolled, comparison_data)
+                #calculate_pairwise_hamming(device, f'{target}/hamming.txt', reference_data, comparison_data)
+
+                pairwise_hamming_distance(device, f'{target}/hamming.txt', reference_data, comparison_data, True)
+                #pairwise_hamming_distance(device, f'{target}/hamming.txt', reference_unrolled, comparison_data, False)
+
 
                 #calculate intra group hamming distances / unrolled
 

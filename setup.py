@@ -1,15 +1,17 @@
+import os
 from setuptools import setup, find_packages
 
-#TODO change name to iris_evaluation
 
 setup(
-    name='generated_iris_evaluation',
-    version='0.1.1',
+    name='iris_evaluation',
+    version='0.1.0',
     packages=find_packages(),
     install_requires=[
         'numpy',
         'opencv-python',
         'pandas',
+        'polars',
+        'openpyxl',
         'tqdm',
         'torch'
     ],
