@@ -1,105 +1,109 @@
-from .CodeLoaders import RolledCodes, UnrolledCodes
-
+import os
+import warnings
 from tqdm import tqdm
+import numpy as np
 import torch
+from torch.utils.data import DataLoader
 
-def set_torch_device():
+
+from .CodeLoaders import RolledCodes, UnrolledCodes
+from .CacheHandler import CacheHandler
+
+def find_device():
     device = 'cpu'
     if torch.cuda.is_available(): #check if NVIDIA gpu is availible
         device = 'cuda:0'
+        warnings.warn("CUDA device found: defaulting to CUDA device 0.")
     elif torch.backends.mps.is_available():
         device = 'mps'
+        warnings.warn("Apple Silicon found: defaulting to MPS.")
     else:
-        print('No GPU or Apple Silicon availible. Operations may be slow.')
+        warnings.warn("No CUDA device or Apple Silicon found. Operations may be slow...")
+
     return device
 
-def append_text_to_file(file_path, comparison, result):
-    with open(file_path, 'a') as file:
-        file.write(f"{comparison}\t{result}\n")
 
-def permutate_data(rolled, device, sample_batch, reference_batch_device):
-    sample_batch_device = sample_batch[0].to(device)
-    print(sample_batch_device.shape)
+class Hamming:
+    def __init__(self, hamming_params):
+        self.__roll =  hamming_params['roll'] #bool
+        self.__self_comparison = hamming_params['self_comparison'] #bool
+        self.__linear = hamming_params['linear'] #bool
+        self.__verbose = hamming_params['verbose'] #bool
+        self.__reference_batch_size = hamming_params['reference_batch_size'] #int
+        self.__comparison_batch_size = hamming_params['comparison_batch_size'] #int
+        self.__data_path = hamming_params['data_path'] #str
+        self.__results_path = hamming_params['results_path'] #str
+        self.__device = find_device() #str
 
-    result = None
-    if rolled:
-        sample_batch_device = sample_batch_device.unsqueeze(1)
-        print(reference_batch_device.shape)
-        print(sample_batch_device.shape)
-        result = torch.bitwise_xor(reference_batch_device, sample_batch_device).sum(dim=-1).min(dim=-1)[0]
-    else:
-        sample_batch_device = sample_batch_device.unsqueeze(0)
-        print(reference_batch_device.shape)
-        print(sample_batch_device.shape)
-        result = torch.bitwise_xor(reference_batch_device, sample_batch_device).sum(dim=-1)
+        self.__reference_loader = self.__set_loader(0, True) #True to indicate that reference is being set
 
-    return result
+    
+    def calculate(self):  #TODO nest tqdm
+        #warnings.warn("Calculating hamming distances may take hours or days...") warn about amount of drive space that will be used for caching
+        warnings.warn("Calculating hamming distances may take hours or days...")
+        for i, output in tqdm(enumerate(self.__data_path)):
+            comparison_loader = None
+            Cache = None
+            target = f'{self.__results_path}/reference-{output.rsplit("/", 2)[1]}__{output.rsplit("/", 2)[2].replace("-GABOR_EXTRACTED.npz", "")}'
+            os.makedirs(target, exist_ok=True)
+            if output == self.__data_path[0] and (self.__verbose or self.__self_comparison):
+                comparison_loader = self.__set_loader(i, False)
+                Cache = CacheHandler(target, True)
+            elif output == self.__data_path[0]:
+                continue
+            else:
+                comparison_loader = self.__set_loader(i)
+                Cache = CacheHandler(target, False)
+            
+            self.__pairwise_hamming_distance(comparison_loader, Cache)
 
-#TODO create main HD function in here?
+            if self.__verbose:
+                Cache.save()
+                Cache.clear()
 
-# take instructions, determine which function to use
 
 
-#TODO make this an if/then
-
-def pairwise_hamming_distance(device, cache_path, reference_codes, sample_codes, rolled):
-    for reference_batch in tqdm(reference_codes):
-        size = reference_batch[0].shape[-1]
-        reference_batch_gpu = reference_batch[0].to(device)
-        reference_batch_gpu = reference_batch_gpu.unsqueeze(1)
-        if rolled:
-            for sample_batch in sample_codes:
-                sample_batch_gpu = sample_batch[0].to(device)
-                sample_batch_gpu = sample_batch_gpu.unsqueeze(1)
-                result = torch.bitwise_xor(reference_batch_gpu, sample_batch_gpu).sum(dim=-1).min(dim=-1)[0]
-                for i in range(len(reference_batch[1])):
-                    for j in range(len(sample_batch[1])):
-                        proto_string = [reference_batch[1][i], sample_batch[1][j]]
-                        proto_string.sort()
-                        append_text_to_file(cache_path, f'{proto_string[0]}|{proto_string[1]}', result[i][j]/size)
+        #sets loaders
+    def __set_loader(self, i, reference=False):
+        dataset = None
+        loader_batch_size = None
+        codes = np.load(self.__data_path[i], allow_pickle=True)
+        if reference:
+            loader_batch_size = self.__reference_batch_size
         else:
-            for sample_batch in sample_codes:
-                sample_batch_gpu = sample_batch[0].to(device)
-                sample_batch_gpu = sample_batch_gpu.unsqueeze(0)
-                result = torch.bitwise_xor(reference_batch_gpu, sample_batch_gpu).sum(dim=-1)
-                for i in range(len(reference_batch[1])):
-                    for j in range(len(sample_batch[1])):
-                        proto_string = [reference_batch[1][i], sample_batch[1][j]]
-                        proto_string.sort()
-                        append_text_to_file(cache_path, f'{proto_string[0]}|{proto_string[1]}', result[i][j]/size)
+            loader_batch_size = self.__comparison_batch_size
 
+        if reference and self.__roll:
+            dataset = RolledCodes(codes)
+        else:
+            dataset = UnrolledCodes(codes)
+        
+        loader = DataLoader(dataset, batch_size=loader_batch_size, pin_memory=True, shuffle=False)
 
-"""
-def calculate_pairwise_hamming(device, cache_path, reference_codes, sample_codes):
-    rolled = None
-
-    if type(reference_codes) is RolledCodes:
-        print(type(reference_codes))
-        rolled = True
-    else:
-        rolled = False
-
-    for reference_batch in tqdm(reference_codes):
-        size = reference_batch[0].shape[-1]
-        reference_batch_device = reference_batch[0].to(device)
-        reference_batch_device = reference_batch_device.unsqueeze(1)
-        print(reference_batch_device.shape)
-
-
-        for sample_batch in sample_codes:
-            result = permutate_data(rolled, device, sample_batch, reference_batch_device)
-
-            for i in range(len(reference_batch[1])):
-                for j in range(len(sample_batch[1])):
-                    proto_string = [reference_batch[1][i], sample_batch[1][j]]
-                    proto_string.sort()
-                    append_text_to_file(cache_path, f'{proto_string[0]}|{proto_string[1]}', result[i][j]/size)
-"""
-
-
-def linear_hamming_distance():
-    pass
-
-
-
-#TODO create main HD function in here?
+        return loader
+    
+    def __pairwise_hamming_distance(self, comparison_loader, Cache):
+        for reference_batch in tqdm(self.__reference_loader):
+            size = reference_batch[0].shape[-1]
+            reference_batch_gpu = reference_batch[0].to(self.__device)
+            reference_batch_gpu = reference_batch_gpu.unsqueeze(1)
+            if self.__roll:
+                for comparison_batch in comparison_loader:
+                    comparison_batch_gpu = comparison_batch[0].to(self.__device)
+                    comparison_batch_gpu = comparison_batch_gpu.unsqueeze(1)
+                    result = torch.bitwise_xor(reference_batch_gpu, comparison_batch_gpu).sum(dim=-1).min(dim=-1)[0]
+                    for i in range(len(reference_batch[1])):
+                        for j in range(len(comparison_batch[1])):
+                            proto_string = [reference_batch[1][i], comparison_batch[1][j]]
+                            proto_string.sort()
+                            Cache.new_line(f'{proto_string[0]}|{proto_string[1]}', result[i][j]/size)
+            else:
+                for comparison_batch in comparison_loader:
+                    comparison_batch_gpu = comparison_batch[0].to(self.__device)
+                    comparison_batch_gpu = comparison_batch_gpu.unsqueeze(0)
+                    result = torch.bitwise_xor(reference_batch_gpu, comparison_batch_gpu).sum(dim=-1)
+                    for i in range(len(reference_batch[1])):
+                        for j in range(len(comparison_batch[1])):
+                            proto_string = [reference_batch[1][i], comparison_batch[1][j]]
+                            proto_string.sort()
+                            Cache.new_line(f'{proto_string[0]}|{proto_string[1]}', result[i][j]/size)

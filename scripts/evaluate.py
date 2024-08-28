@@ -6,7 +6,7 @@ import multiprocessing
 import numpy as np
 from torch.utils.data import DataLoader
 
-from iris_evaluation import MasekGaborKernel, AnalysisArgs, make_instructions, RolledCodes, UnrolledCodes, pairwise_hamming_distance, set_torch_device, process_dataset
+from iris_evaluation import MasekGaborKernel, AnalysisArgs, make_instructions, Hamming
 
 
 def main():
@@ -58,57 +58,24 @@ def main():
             print(f'consolidation complete')
     
     if args.comparison_mode:
-        reference_batch_size = 4
-        sample_batch_size = 10
-
-        device = set_torch_device()
-
-        target_paths = []
-        target_dir = f'{args.comparison[0].rsplit("/", 2)[0]}/results'
-        os.makedirs(target_dir, exist_ok=True)
-
-        #load reference set
-        reference_codes = np.load(args.comparison[0], allow_pickle=True)
-        reference_dataset = RolledCodes(reference_codes)
-        reference_data = DataLoader(reference_dataset, batch_size=reference_batch_size, pin_memory=True)
-
-        #calculate intra group hamming distance
-        reference_unrolled = DataLoader(UnrolledCodes(reference_codes), batch_size=reference_batch_size, pin_memory=True)
+        results_path = f'{args.comparison[0].rsplit("/", 2)[0]}/results'
+        os.makedirs(results_path, exist_ok=True)
 
 
+        hamming_params = {
+            "reference_batch_size" : 4,
+            "comparison_batch_size" : 10,
+            "roll" : True,
+            "self_comparison" : True,
+            "results_path" : results_path,
+            "data_path" : args.comparison,
+            "verbose" : True,
+            "linear": False
+        }
 
+        HammingSetup = Hamming(hamming_params)
+        HammingSetup.calculate()
 
-        #load comparison sets
-        for output in tqdm(args.comparison):
-            if output == args.comparison[0]:
-                continue
-            else:
-                target = f'{target_dir}/reference-{output.rsplit("/", 2)[1]}__{output.rsplit("/", 2)[2].replace("-GABOR_EXTRACTED.npz", "")}'
-                #TODO delete anything in target folder if it exists
-                os.makedirs(target, exist_ok=True)
-                target_paths.append(target)
-
-                comparison_codes = np.load(output, allow_pickle=True)
-                comparison_dataset = UnrolledCodes(comparison_codes)
-                comparison_data = DataLoader(comparison_dataset, batch_size=sample_batch_size, pin_memory=True)
-
-                #calculate_pairwise_hamming(device, f'{target}/hamming.txt', reference_unrolled, comparison_data)
-                #calculate_pairwise_hamming(device, f'{target}/hamming.txt', reference_data, comparison_data)
-
-                pairwise_hamming_distance(device, f'{target}/hamming.txt', reference_data, comparison_data, True)
-                #pairwise_hamming_distance(device, f'{target}/hamming.txt', reference_unrolled, comparison_data, False)
-
-
-                #calculate intra group hamming distances / unrolled
-
-                #organize
-
-                #cutoffs
-
-
-
-
-        
 if __name__ == '__main__':
     manager = multiprocessing.Manager()
     main()

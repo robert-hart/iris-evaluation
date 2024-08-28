@@ -6,7 +6,8 @@ from torch.utils.data import Dataset
 class RolledCodes(Dataset):
     def __init__(self, iris_codes):
         self.iris_codes = iris_codes
-        self.names = (iris_codes.files).sort()
+        self.names = list(iris_codes.files)
+        self.names.sort()
         self.height = iris_codes[self.names[0]].shape[2] * iris_codes[self.names[0]].shape[1] #real + imaginary portions
         self.width = iris_codes[self.names[0]].shape[3]
 
@@ -24,23 +25,8 @@ class RolledCodes(Dataset):
 class UnrolledCodes(Dataset):
     def __init__(self, iris_codes):
         self.iris_codes = iris_codes
-        self.names = (iris_codes.files).sort()
-        self.height = iris_codes[self.names[0]].shape[2] * iris_codes[self.names[0]].shape[1] #real + imaginary portions
-        self.width = iris_codes[self.names[0]].shape[3]
-
-    def __len__(self):
-        return len(self.names)
-
-    def __getitem__(self, idx):
-        iris_code = torch.from_numpy(self.iris_codes[self.names[idx]].reshape(-1))
-
-        return iris_code, self.names[idx]
-    
-#for linear iris code comparison
-class LinearCodes(Dataset):
-    def __init__(self, iris_codes):
-        self.iris_codes = iris_codes
-        self.names = iris_codes.files
+        self.names = list(iris_codes.files)
+        self.names.sort()
         self.height = iris_codes[self.names[0]].shape[2] * iris_codes[self.names[0]].shape[1] #real + imaginary portions
         self.width = iris_codes[self.names[0]].shape[3]
 
