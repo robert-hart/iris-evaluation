@@ -4,11 +4,11 @@ from tqdm import tqdm
 import multiprocessing
 import numpy as np
 
-from iris_evaluation import MasekGaborKernel, AnalysisArgs, make_instructions, PairwiseHamming, FeatureExtraction
+from iris_evaluation import AnalysisArgs, FeatureExtraction, Hamming
 
 
 def main():
-    #reads the csv
+    #reads the csv, make read JSON instead
     arg_parser = argparse.ArgumentParser(description='Finds iris codes for all iris images in a dataset')
     arg_parser.add_argument('-p', '--path', help='path to flag csv', required=False)
     args_path = arg_parser.parse_args()
@@ -26,7 +26,7 @@ def main():
                 os.makedirs(target_path, exist_ok=True)
 
                 logistical_parameters = {
-                    'source': source,
+                    'source': source_images, #maybe just source?
                     'target_path': target_path,
                     'threads': args.threads
                 }
@@ -51,15 +51,16 @@ def main():
         os.makedirs(results_path, exist_ok=True)
 
         hamming_params = {
-            "reference_batch_size" : 4,
             "roll" : True,
-            "results_path" : results_path,
-            "data_paths" : args.comparison,
             "verbose" : True,
+            "pairwise" : True,
+            "data_paths" : args.comparison,
+            "results_path" : results_path,
+            "reference_batch_size" : 4,
         }
 
-        HammingSetup = PairwiseHamming(hamming_params)
-        HammingSetup.calculate()
+        HammingSetup = Hamming(hamming_params)
+        HammingSetup.calculator()
 
 if __name__ == '__main__':
     main()

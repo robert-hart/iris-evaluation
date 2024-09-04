@@ -87,8 +87,8 @@ class FeatureExtraction(object):
         self.shared_parameters = shared_parameters
         self.process_parameters = (int(shared_parameters['segment']), int(shared_parameters['image_size']), int(shared_parameters['output_y']), int(shared_parameters['output_x']), int(shared_parameters['multiplicative_factor']), bool(shared_parameters['verbose'])) #parameters of the dataset | (whether to segment, input size (square), output y, output x), multiplicative factor, verbose
 
-        self.__gabor = MasekGaborKernel(int(self.shared_parameters['output_x']), int(self.shared_parameters['wavelength']), int(self.shared_parameters['octaves']), int(self.multiplicative_factor['octaves']))
-        self.__args = self.__make_args(self, logistical_parameters['source'], logistical_parameters['target'])
+        self.__gabor = MasekGaborKernel(int(self.shared_parameters['output_x']), int(self.shared_parameters['wavelength']), int(self.shared_parameters['octaves']), int(self.shared_parameters['multiplicative_factor']))
+        self.__args = self.__make_args(logistical_parameters['source'], logistical_parameters['target_path'])
 
     def __make_args(self, source, target_path):
         instructions = []        
@@ -97,9 +97,12 @@ class FeatureExtraction(object):
             target = target_path + f'/{image_name}'
             instructions.append(tuple([image, image_name, target]))
 
-
+        return instructions
+    
     #change function to delete more data depending on verbose
-    def __clean(self, target_path, verbose):
+    def clean(self):
+        target_path = self.logistical_parameters['target_path']
+        verbose = self.shared_parameters['verbose']
         print(f'consolidating {target_path}...')
         all_codes = {}
         for npy in os.listdir(target_path):
@@ -111,7 +114,7 @@ class FeatureExtraction(object):
 
         #TODO delete uneeded files if not verbose
 
-    def __calculate(self):
+    def calculate(self):
         pool = multiprocessing.Pool(processes=int(self.logistical_parameters['threads']))
         data_shared = self.__manager.list([self.process_parameters, self.__gabor.kernels])
 

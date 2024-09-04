@@ -5,9 +5,7 @@ document.getElementById('routine').addEventListener('change', function() {
 
     var selectedOption = this.value;
 
-    if (selectedOption === '0') {
-        //extraction_options["routine"] = 0;
-    } else if (selectedOption === '1') {
+    if (selectedOption === '1') {
         //extraction_options["routine"] = 1;
         feature_extraction(extraFieldsDiv, false);
     } else if (selectedOption === '2') {
@@ -25,18 +23,26 @@ document.getElementById('parameters_form').addEventListener('submit', function(e
 
     var formData = new FormData(this);
     var extraction_options = {
-        "directory": "N/A",
-        "routine": "N/A",
-        "verbose": "N/A",
-        "threads": "N/A",
-        "bitShifts": "N/A",
-        "wavelength": "N/A",
-        "batchSize": "N/A"
+        "gabor_extraction": false, //bool
+        "hamming_distance": false, //bool
+        "wavelength": 0, //int
+        "verbose": false, //bool
+        "threads": 0, //int
+        "batchSize": 0, //int
+        "iris-evaluation_path": "N/A" //text
     };
 
     formData.forEach(function(value, key) {
         extraction_options[key] = value;
     });
+
+    if (extraction_options['threads'] !== "N/A"){
+        extraction_options['gabor_extraction'] = true;
+    };
+
+    if (extraction_options['batchSize'] !== "N/A"){
+        extraction_options['hamming_distance'] = true;
+    };
 
     var json = JSON.stringify(extraction_options, null, 2);
     console.log(json);
@@ -105,7 +111,7 @@ function feature_extraction(extraFieldsDiv, hamming) {
 function hamming_distance(extraFieldsDiv) {
     var span_2 = document.createElement('span');
     span_2.setAttribute('class', 'space');
-    span_2.textContent = 'Bit shifts:';
+    span_2.textContent = 'Roll codes:';
     extraFieldsDiv.appendChild(span_2);
 
     var inputBitShifts_true = document.createElement('input');

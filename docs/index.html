@@ -10,8 +10,9 @@
 <body>
     <div class="section" id="first">
         <h1>Getting Started</h1>
-        <p>This page is designed to generate configuration files for the {paper name} implementation of the iris-evaluation package.<p>
-        <p>UNDER CONSTRUCTION</p>
+        <p>This page is designed to generate configuration files for the iris-evaluation package.<p>
+        <p>To replicate paper results, simply select 'Extract features + Calculate hamming distance' below and keep all parameters the same. Then put downloaded .json file in your iris-evaluation directory.</p>
+		
     </div>
 
 	<!--
@@ -22,11 +23,11 @@
     <fieldset>
     <legend>Parameters:</legend>
 		<label for="begin" class="space">Evaluation directory:</label> 
-        	<input type="text" id="primary_directory" name="directory" value="" required><br>
+        	<input type="text" id="primary_directory" name="iris-evaluation_path" value="" required><br>
 		<hr>
 		<label for="routine" class="space">Routine:</label>
         	<select id="routine" name="routine">
-          		<option value="0" selected>Find Optimal Gabor Parameters</option>
+				<option value="0" selected>select option</option>
           		<option value="1">Extract features</option>
           		<option value="2">Calculate hamming distance</option>
           		<option value="3">Extract features + Calculate hamming distance</option>
