@@ -1,3 +1,4 @@
+#TODO: better OOP & algs.
 import os
 import warnings
 from tqdm import tqdm
@@ -13,12 +14,12 @@ def find_device():
     device = 'cpu'
     if torch.cuda.is_available(): #check if NVIDIA gpu is availible
         device = 'cuda:0'
-        print("CUDA device found: defaulting to CUDA device 0.")
+        print("CUDA device found: defaulting to CUDA device 0.\n")
     elif torch.backends.mps.is_available():
         device = 'mps'
-        print("Apple Silicon found: defaulting to MPS.")
+        print("Apple Silicon found: defaulting to MPS.\n")
     else:
-        warnings.warn("No CUDA device or Apple Silicon found. Operations may be slow...")
+        warnings.warn("No CUDA device or Apple Silicon found. Operations may be slow...\n")
 
     return device
 
@@ -32,27 +33,40 @@ class Hamming(object):
         self.__pairwise = bool(hamming_params['pairwise'])
         self.__reference_batch_size = int(hamming_params['reference_batch_size']) #int
         self.__data_paths = hamming_params['data_paths'] #str
+        self.__reference_tag = self.__data_paths[0].rsplit("__", 1)[0].split("/")[-1]
         self.__results_path = hamming_params['results_path'] #str
-
         self.__device = find_device() #str
-
         self.__reference_loader = self.__set_loader(0, True)
 
     def calculator(self):  #TODO nest tqdm
-        print("Calculating hamming distances. May take hours or days...")
+        num_comparisons = None
+        num_sets = len(self.__data_paths)
+        if self.__verbose:
+            num_comparisons = (num_sets * 2) - 1
+        else:
+            num_comparisons = num_sets
+        count = 1
 
-        for i, data_path in tqdm(enumerate(self.__data_paths)):
-            if data_path == self.__data_paths[0]: #no self comparison if not needed
-                if not self.__verbose:
-                    continue
+        print("Comparing datasets. May take take some time...\n")
 
+        for i, data_path in enumerate(self.__data_paths):
             if self.__pairwise:
                 self.__comparison_batch_size = int(self.__reference_batch_size * 3)
-                self.__calculate_pairwise(i, data_path)
-                if self.__verbose:
-                    self.__calculate_self_pairwise(i, data_path)
+                if data_path == self.__data_paths[0]:
+                    print(f"\n(COMPARISON {count}/{num_comparisons}):\tCalculating intra-dataset pairwise hamming distances for {self.__reference_tag}.\n")
+                    self.__calculate_self_pairwise(i, self.__reference_tag)
+                    count = count + 1
+                else:
+                    dataset_tag = data_path.rsplit("__", 1)[0].split("/")[-1]
+                    print(f"\n(COMPARISON {count}/{num_comparisons}):\tCalculating inter-dataset pairwise hamming distances between {self.__reference_tag} & {dataset_tag}.\n")
+                    self.__calculate_pairwise(i, dataset_tag)
+                    count = count + 1
+                    if self.__verbose:
+                        print(f"\n(COMPARISON {count}/{num_comparisons}):\tCalculating intra-dataset pairwise hamming distances for {dataset_tag}.\n")
+                        self.__calculate_self_pairwise(i, dataset_tag)
+                        count = count + 1
             else:
-                self.__calculate_linear(i, data_path)
+                self.__calculate_linear(i, data_path) #TODO: double check this whole branch
     """
     METHODS TO HELP WITH LOGISTICS, PROBABLY OVERCOMPLICATED BUT IT WORKS.
     """
@@ -61,6 +75,7 @@ class Hamming(object):
         dataset = None
         batch_size = None
         codes = np.load(self.__data_paths[i], allow_pickle=True)
+
         if reference:
             batch_size = self.__reference_batch_size
         else:
@@ -75,20 +90,18 @@ class Hamming(object):
 
         return loader
     
-
-    def __calculate_pairwise(self, i, data_path):
+    def __calculate_pairwise(self, i, dataset_tag):
         comparison_loader = self.__set_loader(i)
-        target = f'{self.__results_path}/reference-{data_path.rsplit("/", 2)[1]}__{data_path.rsplit("/", 2)[2].replace("-GABOR_EXTRACTED.npz", "")}'
+        target = f'{self.__results_path}/pairwise-inter__{self.__reference_tag}_&_{dataset_tag}'
         os.makedirs(target, exist_ok=True)
-        Cache = PairwiseCache(target)
+        Cache = PairwiseCache(target, True, False)
         self.__pairwise_hamming_distance(self.__reference_loader, comparison_loader, Cache)
         Cache.save()
         Cache.clear()
 
-
-    def __calculate_self_pairwise(self, i, data_path):
+    #save in data_path
+    def __calculate_self_pairwise(self, i, dataset_tag):
         reference_loader = None
-
         if i == 0:
             reference_loader = self.__reference_loader
         else:
@@ -96,21 +109,22 @@ class Hamming(object):
 
         comparison_loader = self.__set_loader(i)
 
-        target = f"{data_path.replace('-GABOR_EXTRACTED.npz', f'__self_comparison_{i}')}"
+        target = f'{self.__results_path}/pairwise-intra__{dataset_tag}_&_{dataset_tag}'
         os.makedirs(target, exist_ok=True)
 
-        Cache = PairwiseCache(target, True)
+        Cache = PairwiseCache(target, True, True)
         self.__pairwise_hamming_distance(reference_loader, comparison_loader, Cache)
         Cache.save()
         Cache.clear()
     
     def __calculate_linear(self, i, data_path):
+        set_tag = data_path.split("__", 1)[0]
         comparison_loader = self.__set_loader(i)
 
-        target = f'{self.__results_path}/linear-{data_path.rsplit("/", 2)[1]}__{data_path.rsplit("/", 2)[2].replace("-GABOR_EXTRACTED.npz", "")}'
+        target = f'{self.__results_path}/linear__{self.__reference_tag}_&_{set_tag}'
         os.makedirs(target, exist_ok=True)
 
-        Cache = LinearCache(target)
+        Cache = LinearCache(target, False)
         self.__linear_hamming_distance(comparison_loader, Cache)
         Cache.save()
         Cache.clear()
@@ -127,6 +141,7 @@ class Hamming(object):
             conditions.append(condition)
     
         return tuple(conditions)
+    
     """
     OVERLOADED METHOD FOR PAIRWISE HAMMING DISTANCE TO CHANGE REFERENCE SOURCE
     TODO: make if/then statements more efficient. too much boilerplate.

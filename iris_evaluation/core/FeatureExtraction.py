@@ -1,4 +1,5 @@
 import os
+import shutil
 from tqdm import tqdm
 import multiprocessing
 import numpy as np
@@ -12,7 +13,7 @@ from ..utils import elementary_segmentation as segmentation
 
 def process_dataset(arguments):
     #shared data
-    process_parameters = arguments[0][0] #TODO expand this out
+    process_parameters = arguments[0][0] #TODO make more clear
     gabor_kernels = arguments[0][1]
 
     #image specific data
@@ -103,16 +104,14 @@ class FeatureExtraction(object):
     def clean(self):
         target_path = self.logistical_parameters['target_path']
         verbose = self.shared_parameters['verbose']
-        print(f'consolidating {target_path}...')
         all_codes = {}
         for npy in os.listdir(target_path):
             if '.npy' in npy:
                 name = npy.split('.')[0]
                 all_codes[name] = np.load(f'{target_path}/{npy}', allow_pickle=True)
-        np.savez(f'{target_path}-GABOR_EXTRACTED.npz', **all_codes)
-        print(f'consolidation complete')
-
-        #TODO delete uneeded files if not verbose
+        if not verbose:
+            shutil.rmtree(target_path)
+        np.savez(f'{target_path}.npz', **all_codes)
 
     def calculate(self):
         pool = multiprocessing.Pool(processes=int(self.logistical_parameters['threads']))

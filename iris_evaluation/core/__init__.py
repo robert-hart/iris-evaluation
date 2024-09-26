@@ -1,4 +1,3 @@
-from .AnalysisArgs import AnalysisArgs
 from .MasekCode import MasekGaborKernel, MasekGaborResponse
 from .CodeLoaders import RolledCodes, UnrolledCodes
 from .Normalize import CoordinateTransformer

@@ -2,7 +2,6 @@
 Code for "iris_evaluation".
 """
 
-from .core.AnalysisArgs import AnalysisArgs
 from .core.MasekCode import MasekGaborKernel, MasekGaborResponse
 from .core.CodeLoaders import RolledCodes, UnrolledCodes
 from .core.Normalize import CoordinateTransformer
