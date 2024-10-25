@@ -1,7 +1,5 @@
 """
-AUTHOR: Rob Hart
-PURPOSE: To normalize the iris image to a fixed size in polar coordinates
-LIMITATIONS: Input must be a perfect square with even dimensions; no assurance that the same pixel doesn't get assigned twice because of rounding
+Written by Rob Hart of Walsh Lab @ IU Indianapolis.
 """
 
 import numpy as np

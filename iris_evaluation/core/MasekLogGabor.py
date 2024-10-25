@@ -4,12 +4,11 @@ ORIGINAL AUTHOR: Libor Masek
 
 CITATION: Libor Masek, Peter Kovesi. MATLAB Source Code for a Biometric Identification System Based on Iris Patterns. The School of Computer Science and Software Engineering, The University of Western Australia. 2003.
 
-PYTHON IMPLEMENTATION BY: ROB HART
+PYTHON IMPLEMENTATION BY: ROB HART OF SUSAN WALSH LAB.
 
 """
 
 import numpy as np
-import cv2
 
 class MasekGaborKernel(object):
     def __init__(self, ksize, wavelength, num_filters, multiplicitive_factor, sigmaOnf=0.5):

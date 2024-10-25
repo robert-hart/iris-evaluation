@@ -1,3 +1,7 @@
+"""
+Written by Rob Hart of Walsh Lab @ IU Indianapolis.
+"""
+
 import os
 import shutil
 from tqdm import tqdm
@@ -5,7 +9,7 @@ import multiprocessing
 import numpy as np
 import cv2
 
-from .MasekCode import MasekGaborKernel, MasekGaborResponse
+from .MasekLogGabor import MasekGaborKernel, MasekGaborResponse
 from .Normalize import CoordinateTransformer
 
 from ..utils import otsu_thresh

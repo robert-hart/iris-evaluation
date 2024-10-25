@@ -1,3 +1,7 @@
+"""
+Written by Rob Hart of Walsh Lab @ IU Indianapolis.
+"""
+
 import numpy as np
 import torch
 from torch.utils.data import Dataset

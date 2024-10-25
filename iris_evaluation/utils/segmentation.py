@@ -1,3 +1,7 @@
+"""
+Written by Rob Hart of Walsh Lab @ IU Indianapolis.
+"""
+
 import numpy as np
 import cv2
 
@@ -8,8 +12,7 @@ def otsu_thresh(image):
         image_blur = cv2.GaussianBlur(image_bright, (5, 5), 0) 
         image_thresh = cv2.threshold(image_blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
 
-        return image_thresh
-
+        return image_thresh #mask
 
 def elementary_segmentation(img_thresh):
     shape_img = img_thresh.shape[0]//2

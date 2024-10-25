@@ -1,3 +1,7 @@
+"""
+Written by Rob Hart of Walsh Lab @ IU Indianapolis.
+"""
+
 import os
 import numpy as np
 import polars as pl
@@ -11,14 +15,17 @@ from scipy import stats
 class CacheHandler:
     def __init__(self, target, verbose=False, self_comparison=False):
         self.target = target
-        self.path = (f'{target}/.cache.tsv', f'{target}/hamming.parquet')
+        self.path = (f'{target}/.cache.tsv', f'{target}/hamming.parquet', f'{target}/hamming.csv')
         self.self_comparison = self_comparison #boolean indicating whether or not comparisons are intradataset
         self.verbose = verbose
         self.clear()
         
-    def new_line(self, comparison, result):
+    def new_line(self, comparison, result, SSIM = False):
         with open(self.path[0], 'a') as file:
-            file.write(f'{comparison}\t{result}\n')
+            if self.verbose and not self.self_comparison:
+                file.write(f'{comparison}\t{result}\t{SSIM}\n')
+            else:
+                file.write(f'{comparison}\t{result}\n')
 
     def clear(self):
         if os.path.exists(self.path[0]):
@@ -26,9 +33,10 @@ class CacheHandler:
 
 class PairwiseCache(CacheHandler):
     def save(self):
+        data = self.__get_all()
+        data[0].write_parquet(self.path[1])
+        data[0].write_csv(self.path[2])
         if self.verbose:
-            data = self.__get_all()
-            data[0].write_parquet(self.path[1])
             np_path = self.path[1].replace(".parquet", ".npy")
             np.save(np_path, data[1])
             with open(self.path[1].replace("hamming.parquet", "summary_stats.txt"), 'w') as file:
@@ -53,24 +61,19 @@ class PairwiseCache(CacheHandler):
             plt.title('Hamming Distance Histogram with Confidence Intervals', fontsize=16)
             plt.xlabel('Hamming Distance', fontsize=14)
             plt.ylabel('Density', fontsize=14)
-            plt.xlim(0.3, 0.5)
+            plt.xlim(0.3, 0.6)
             plt.tick_params(axis='both', which='major', labelsize=10)
             plt.legend()
 
             plt.savefig(self.path[1].replace(".parquet", ".png"), dpi=300)
             plt.clf()
 
-        else:
-            df = self.__import()
-            path = self.path[1]
-            df.write_parquet(path)
-
     def __import(self):
         df = pl.read_csv(self.path[0], has_header=False, separator='\t', new_columns=['comparison', 'HD'], glob=False)
-        df = df.unique(subset=["comparison"])
+        #df = df.unique(subset=["comparison"])
         df = df.with_columns(pl.col("comparison").str.split_exact("|", 1).struct.rename_fields(["img1", "img2"]).alias("fields")).unnest("fields")
-        if self.self_comparison:
-            df = df.filter(pl.col("img1") != pl.col("img2"))
+        #if self.self_comparison:
+        #    df = df.filter(pl.col("img1") != pl.col("img2"))
 
         return df
 
@@ -121,7 +124,6 @@ class LinearCache(CacheHandler):
         df = df.with_columns(pl.col("condition").str.split_exact("_", 1).struct.rename_fields(["rotation", "mask"]).alias("fields")).unnest("fields")
         df = df.select(["image", "condition", "rotation", "mask", "HD", "comparison"])
         df = df.drop("comparison")
-
 
         return df
 

@@ -1,4 +1,8 @@
-#TODO: better OOP & algs.
+"""
+Written by Rob Hart of Walsh Lab @ IU Indianapolis.
+"""
+
+#TODO: smarter OOP & algs.
 import os
 import warnings
 from tqdm import tqdm
@@ -6,9 +10,9 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-
 from .CodeLoaders import RolledCodes, UnrolledCodes
 from .CacheHandler import PairwiseCache, LinearCache
+
 
 def find_device():
     device = 'cpu'
@@ -17,12 +21,11 @@ def find_device():
         print("CUDA device found: defaulting to CUDA device 0.\n")
     elif torch.backends.mps.is_available():
         device = 'mps'
-        print("Apple Silicon found: defaulting to MPS.\n")
+        print("\nApple Silicon found: defaulting to MPS.\n")
     else:
         warnings.warn("No CUDA device or Apple Silicon found. Operations may be slow...\n")
 
     return device
-
 
 class Hamming(object):
     def __init__(self, hamming_params):
@@ -47,30 +50,27 @@ class Hamming(object):
             num_comparisons = num_sets
         count = 1
 
-        print("Comparing datasets. May take take some time...\n")
+        print("Comparing datasets. This may take some time...\n")
 
         for i, data_path in enumerate(self.__data_paths):
             if self.__pairwise:
                 self.__comparison_batch_size = int(self.__reference_batch_size * 3)
-                if data_path == self.__data_paths[0]:
+                if data_path == self.__data_paths[0]: #if zero, calculate intra
                     print(f"\n(COMPARISON {count}/{num_comparisons}):\tCalculating intra-dataset pairwise hamming distances for {self.__reference_tag}.\n")
-                    self.__calculate_self_pairwise(i, self.__reference_tag)
+                    self.__calculate_pairwise(i, self.__reference_tag, intra_comparison=True)
                     count = count + 1
                 else:
                     dataset_tag = data_path.rsplit("__", 1)[0].split("/")[-1]
                     print(f"\n(COMPARISON {count}/{num_comparisons}):\tCalculating inter-dataset pairwise hamming distances between {self.__reference_tag} & {dataset_tag}.\n")
-                    self.__calculate_pairwise(i, dataset_tag)
+                    self.__calculate_pairwise(i, dataset_tag, verbose=self.__verbose)
                     count = count + 1
                     if self.__verbose:
                         print(f"\n(COMPARISON {count}/{num_comparisons}):\tCalculating intra-dataset pairwise hamming distances for {dataset_tag}.\n")
-                        self.__calculate_self_pairwise(i, dataset_tag)
+                        self.__calculate_pairwise(i, dataset_tag, intra_comparison=True)
                         count = count + 1
             else:
                 self.__calculate_linear(i, data_path) #TODO: double check this whole branch
-    """
-    METHODS TO HELP WITH LOGISTICS, PROBABLY OVERCOMPLICATED BUT IT WORKS.
-    """
-
+        
     def __set_loader(self, i, reference=False):
         dataset = None
         batch_size = None
@@ -90,32 +90,34 @@ class Hamming(object):
 
         return loader
     
-    def __calculate_pairwise(self, i, dataset_tag):
-        comparison_loader = self.__set_loader(i)
-        target = f'{self.__results_path}/pairwise-inter__{self.__reference_tag}_&_{dataset_tag}'
-        os.makedirs(target, exist_ok=True)
-        Cache = PairwiseCache(target, True, False)
-        self.__pairwise_hamming_distance(self.__reference_loader, comparison_loader, Cache)
-        Cache.save()
-        Cache.clear()
-
-    #save in data_path
-    def __calculate_self_pairwise(self, i, dataset_tag):
+    def __calculate_pairwise(self, i, tag, intra_comparison=False, verbose=False):
+        comparison_str = None
         reference_loader = None
-        if i == 0:
-            reference_loader = self.__reference_loader
+        comparison_loader = None
+        stats = False
+
+        if intra_comparison:
+            comparison_str = 'pairwise-intra__'
+            if i == 0:
+                reference_loader = self.__reference_loader
+            else:
+                reference_loader = self.__set_loader(i, reference=True)
+            comparison_loader = self.__set_loader(i)
         else:
-            reference_loader = self.__set_loader(i, reference=True)
-
-        comparison_loader = self.__set_loader(i)
-
-        target = f'{self.__results_path}/pairwise-intra__{dataset_tag}_&_{dataset_tag}'
+            comparison_str = 'pairwise-inter__'
+            reference_loader = self.__reference_loader
+            comparison_loader = self.__set_loader(i)
+            if verbose:
+                stats = True
+        
+        target = f'{self.__results_path}/{comparison_str}{self.__reference_tag}_&_{tag}'
         os.makedirs(target, exist_ok=True)
-
-        Cache = PairwiseCache(target, True, True)
-        self.__pairwise_hamming_distance(reference_loader, comparison_loader, Cache)
+        Cache = PairwiseCache(target, self.__verbose, intra_comparison)
+        
+        self.__pairwise_hamming_distance(reference_loader, comparison_loader, Cache, stats, tag)
         Cache.save()
         Cache.clear()
+
     
     def __calculate_linear(self, i, data_path):
         set_tag = data_path.split("__", 1)[0]
@@ -142,64 +144,31 @@ class Hamming(object):
     
         return tuple(conditions)
     
-    """
-    OVERLOADED METHOD FOR PAIRWISE HAMMING DISTANCE TO CHANGE REFERENCE SOURCE
-    TODO: make if/then statements more efficient. too much boilerplate.
-    """
-
-    def __pairwise_hamming_distance(self, comparison_loader, Cache):
-        for reference_batch in tqdm(self.__reference_loader):
-            size = reference_batch[0].shape[-1]
-            reference_batch_gpu = reference_batch[0].to(self.__device)
-            reference_batch_gpu = reference_batch_gpu.unsqueeze(1)
-            if self.__roll:
-                for comparison_batch in comparison_loader:
-                    comparison_batch_gpu = comparison_batch[0].to(self.__device)
-                    comparison_batch_gpu = comparison_batch_gpu.unsqueeze(1)
-                    result = torch.bitwise_xor(reference_batch_gpu, comparison_batch_gpu).sum(dim=-1).min(dim=-1)[0]
-                    for i in range(len(reference_batch[1])):
-                        for j in range(len(comparison_batch[1])):
-                            proto_string = [reference_batch[1][i], comparison_batch[1][j]]
-                            proto_string.sort()
-                            Cache.new_line(f'{proto_string[0]}|{proto_string[1]}', result[i][j]/size)
-            else:
-                for comparison_batch in comparison_loader:
-                    comparison_batch_gpu = comparison_batch[0].to(self.__device)
-                    comparison_batch_gpu = comparison_batch_gpu.unsqueeze(0)
-                    result = torch.bitwise_xor(reference_batch_gpu, comparison_batch_gpu).sum(dim=-1)
-                    for i in range(len(reference_batch[1])):
-                        for j in range(len(comparison_batch[1])):
-                            proto_string = [reference_batch[1][i], comparison_batch[1][j]]
-                            proto_string.sort()
-                            Cache.new_line(f'{proto_string[0]}|{proto_string[1]}', result[i][j]/size)
-    
-
     def __pairwise_hamming_distance(self, reference_loader, comparison_loader, Cache):
         for reference_batch in tqdm(reference_loader):
+            comparison_unsqueeze = None
+            
             size = reference_batch[0].shape[-1]
             reference_batch_gpu = reference_batch[0].to(self.__device)
             reference_batch_gpu = reference_batch_gpu.unsqueeze(1)
+
             if self.__roll:
-                for comparison_batch in comparison_loader:
-                    comparison_batch_gpu = comparison_batch[0].to(self.__device)
-                    comparison_batch_gpu = comparison_batch_gpu.unsqueeze(1)
-                    result = torch.bitwise_xor(reference_batch_gpu, comparison_batch_gpu).sum(dim=-1).min(dim=-1)[0]
-                    for i in range(len(reference_batch[1])):
-                        for j in range(len(comparison_batch[1])):
-                            proto_string = [reference_batch[1][i], comparison_batch[1][j]]
-                            proto_string.sort()
-                            Cache.new_line(f'{proto_string[0]}|{proto_string[1]}', result[i][j]/size)
+                comparison_unsqueeze = 1
             else:
-                for comparison_batch in comparison_loader:
-                    comparison_batch_gpu = comparison_batch[0].to(self.__device)
-                    comparison_batch_gpu = comparison_batch_gpu.unsqueeze(0)
-                    result = torch.bitwise_xor(reference_batch_gpu, comparison_batch_gpu).sum(dim=-1)
-                    for i in range(len(reference_batch[1])):
-                        for j in range(len(comparison_batch[1])):
-                            proto_string = [reference_batch[1][i], comparison_batch[1][j]]
-                            proto_string.sort()
-                            Cache.new_line(f'{proto_string[0]}|{proto_string[1]}', result[i][j]/size)
-    
+                comparison_unsqueeze = 0
+            
+            for comparison_batch in comparison_loader:
+                comparison_batch_gpu = comparison_batch[0].to(self.__device)
+                comparison_batch_gpu = comparison_batch_gpu.unsqueeze(comparison_unsqueeze)
+                result = torch.bitwise_xor(reference_batch_gpu, comparison_batch_gpu).sum(dim=-1)
+                if self.__roll:
+                    result = result.min(dim=-1)[0]
+                for i in range(len(reference_batch[1])):
+                    for j in range(len(comparison_batch[1])):
+                        proto_string = [reference_batch[1][i], comparison_batch[1][j]]
+                        proto_string.sort()
+                        Cache.new_line(f'{proto_string[0]}|{proto_string[1]}', result[i][j]/size)
+      
     def __linear_hamming_distance(self, comparison_loader, Cache):
         for (reference_codes, reference_names), (comparison_codes, comparison_names) in tqdm(zip(self.__reference_loader, comparison_loader)):
             reference_codes = reference_codes.to(self.__device)
